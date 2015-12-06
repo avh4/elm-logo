@@ -17,12 +17,18 @@ import Slider
 
 type alias Model =
     { duration : Time
+    , sync : Float
+    , spacing : Float
+    , size : Float
     }
 
 
 init : Model
 init =
     { duration = 2 * second
+    , sync = 800
+    , spacing = 700
+    , size = 10
     }
 
 
@@ -44,13 +50,13 @@ trans2 ( t, a ) =
     transform <| "translate" ++ (toString t) ++ ", rotate(" ++ (toString a) ++ ")"
 
 
-logo : Time -> Time -> Html
-logo duration now =
+logo : Time -> Float -> Float -> Float -> Time -> Html
+logo duration sync spacing size now =
     let
         tr x y =
             let
                 pulse =
-                    ease (Easing.easeInOutQuad |> Easing.retour) float 1.0 1.1
+                    ease (Easing.easeInOutQuad |> Easing.retour) float 1.0 size
 
                 silence =
                     ease (Easing.linear) float 1.0 1.0
@@ -62,17 +68,17 @@ logo duration now =
                         a2 (d - t0) (t - t0)
 
                 anim =
-                    Easing.cycle <| first (0.7) silence pulse
+                    Easing.cycle <| first spacing silence pulse
 
                 s =
-                    anim duration (now - (y / 280 * 800))
+                    anim duration (now - (y / 280 * sync))
             in
                 transform <| "scale(" ++ (toString s) ++ ")"
     in
         svg
             [ width "560", height "560" ]
             [ g
-                [ width "280", height "280", transform "translate(140,140)" ]
+                [ width "280", height "280", transform "translate(140,140) translate(140,140)" ]
                 [ path [ tr 104 33, fill "#7ed13b", d "M-132.3 -140h133c20.3 20.4 40.7 40.7 61 61-44 .1-88 0-133 0-20.5-20.3-40.8-40.8-61-61" ] []
                 , path [ tr 244 42, fill "#5fb4cb", d "M16 -140h124v124c-41-41-83-83-124-124" ] []
                 , path [ tr 50 140, fill "#596378", d "M-140 -132.3c44 44 88 88 133 133-44 44-88 88-133 133v-265" ] []
@@ -85,18 +91,54 @@ logo duration now =
 
 
 durationMailbox =
-    Signal.mailbox 2000
+    Signal.mailbox init.duration
+
+
+syncMailbox =
+    Signal.mailbox init.sync
+
+
+spacingMailbox =
+    Signal.mailbox init.spacing
+
+
+sizeMailbox =
+    Signal.mailbox init.size
 
 
 view : Model -> Time -> Html
 view model now =
     Html.div
         []
-        [ Html.text ("Duration " ++ (toString model.duration))
-        , logo model.duration now
-        , Slider.float "Duration (ms)" 100 5000 100 2000 durationMailbox
+        [ Slider.float "Duration (ms)" 100 5000 100 init.duration durationMailbox
+        , Html.text (toString model.duration)
+        , Html.br [] []
+        , Slider.float "Sync (ms)" 0 3000 100 init.sync syncMailbox
+        , Html.text (toString model.sync)
+        , Html.br [] []
+        , Slider.float "Spacing (ms)" 0 2000 100 init.spacing spacingMailbox
+        , Html.text (toString model.spacing)
+        , Html.br [] []
+        , Slider.float "Pulse Size (%)" -10 20 1 init.size sizeMailbox
+        , Html.text (toString model.size)
+        , Html.br [] []
+        , logo
+            model.duration
+            model.sync
+            (model.spacing / 1000)
+            (1 + (model.size / 100))
+            now
         ]
 
 
 main =
-    Signal.map2 view (Signal.map Model durationMailbox.signal) (Time.every 10)
+    Signal.map2
+        view
+        (Signal.map4
+            Model
+            durationMailbox.signal
+            syncMailbox.signal
+            spacingMailbox.signal
+            sizeMailbox.signal
+        )
+        (Time.every 10)
