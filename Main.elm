@@ -9,6 +9,7 @@ import Svg.Events exposing (onClick)
 import Time exposing (Time, second)
 import StartApp
 import Task
+import Slider
 
 
 -- MODEL
@@ -43,8 +44,8 @@ trans2 ( t, a ) =
     transform <| "translate" ++ (toString t) ++ ", rotate(" ++ (toString a) ++ ")"
 
 
-view : Model -> Time -> Html
-view model now =
+logo : Time -> Time -> Html
+logo duration now =
     let
         tr x y =
             let
@@ -64,7 +65,7 @@ view model now =
                     Easing.cycle <| first (0.7) silence pulse
 
                 s =
-                    anim (model.duration) (now - (y / 280 * 800))
+                    anim duration (now - (y / 280 * 800))
             in
                 transform <| "scale(" ++ (toString s) ++ ")"
     in
@@ -83,5 +84,19 @@ view model now =
             ]
 
 
+durationMailbox =
+    Signal.mailbox 2000
+
+
+view : Model -> Time -> Html
+view model now =
+    Html.div
+        []
+        [ Html.text ("Duration " ++ (toString model.duration))
+        , logo model.duration now
+        , Slider.float "Duration (ms)" 100 5000 100 2000 durationMailbox
+        ]
+
+
 main =
-    Signal.map (view init) (Time.every 10)
+    Signal.map2 view (Signal.map Model durationMailbox.signal) (Time.every 10)
