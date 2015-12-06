@@ -15,23 +15,14 @@ import Task
 
 
 type alias Model =
-    { angle : Float
-    , animationState : AnimationState
+    { duration : Time
     }
 
 
-type alias AnimationState =
-    { prevClockTime : Time
-    , elapsedTime : Time
+init : Model
+init =
+    { duration = 2 * second
     }
-
-
-rotateStep =
-    90
-
-
-duration =
-    2 * second
 
 
 
@@ -52,8 +43,8 @@ trans2 ( t, a ) =
     transform <| "translate" ++ (toString t) ++ ", rotate(" ++ (toString a) ++ ")"
 
 
-view : Time -> Html
-view now =
+view : Model -> Time -> Html
+view model now =
     let
         tr x y =
             let
@@ -73,7 +64,7 @@ view now =
                     Easing.cycle <| first (0.7) silence pulse
 
                 s =
-                    anim duration (now - (y / 280 * 800))
+                    anim (model.duration) (now - (y / 280 * 800))
             in
                 transform <| "scale(" ++ (toString s) ++ ")"
     in
@@ -93,4 +84,4 @@ view now =
 
 
 main =
-    Signal.map view (Time.every 10)
+    Signal.map (view init) (Time.every 10)
