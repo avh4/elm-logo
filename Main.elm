@@ -21,14 +21,9 @@ type alias Model =
 
 
 type alias AnimationState =
-    Maybe { prevClockTime : Time, elapsedTime : Time }
-
-
-init : ( Model, Effects Action )
-init =
-    ( { angle = 0, animationState = Nothing }
-    , Effects.none
-    )
+    { prevClockTime : Time
+    , elapsedTime : Time
+    }
 
 
 rotateStep =
@@ -36,65 +31,12 @@ rotateStep =
 
 
 duration =
-    1 * second
+    2 * second
 
 
 
 -- UPDATE
-
-
-type Action
-    = Spin
-    | Tick Time
-
-
-update : Action -> Model -> ( Model, Effects Action )
-update msg model =
-    case msg of
-        Spin ->
-            case model.animationState of
-                Nothing ->
-                    ( model, Effects.tick Tick )
-
-                Just _ ->
-                    ( model, Effects.none )
-
-        Tick clockTime ->
-            let
-                newElapsedTime =
-                    case model.animationState of
-                        Nothing ->
-                            0
-
-                        Just { elapsedTime, prevClockTime } ->
-                            elapsedTime + (clockTime - prevClockTime)
-            in
-                if newElapsedTime > duration then
-                    ( { angle = model.angle + rotateStep
-                      , animationState = Nothing
-                      }
-                    , Effects.none
-                    )
-                else
-                    ( { angle = model.angle
-                      , animationState = Just { elapsedTime = newElapsedTime, prevClockTime = clockTime }
-                      }
-                    , Effects.tick Tick
-                    )
-
-
-
 -- VIEW
-
-
-toOffset : AnimationState -> Float
-toOffset animationState =
-    case animationState of
-        Nothing ->
-            0
-
-        Just { elapsedTime } ->
-            ease easeOutElastic float 0 rotateStep duration elapsedTime
 
 
 trans : ( ( Float, Float ), ( Float, Float, Float ) ) -> Svg.Attribute
@@ -110,49 +52,45 @@ trans2 ( t, a ) =
     transform <| "translate" ++ (toString t) ++ ", rotate(" ++ (toString a) ++ ")"
 
 
-view : Signal.Address Action -> Model -> Html
-view address model =
+view : Time -> Html
+view now =
     let
-        ( angle, dist ) =
-            case model.animationState of
-                Nothing ->
-                    ( 0, 100 )
+        tr x y =
+            let
+                pulse =
+                    ease (Easing.easeInOutQuad |> Easing.retour) float 1.0 1.1
 
-                Just { elapsedTime } ->
-                    ( ease easeOutElastic float 0 rotateStep duration elapsedTime
-                    , ease easeOutElastic float 100 200 duration elapsedTime
-                    )
+                silence =
+                    ease (Easing.linear) float 1.0 1.0
 
-        t1 = trans ( ( 100, 100 ), ( model.angle + angle, 140, 140 ) )
+                first t0 a1 a2 d t =
+                    if t <= t0 then
+                        a1 t0 t
+                    else
+                        a2 (d - t0) (t - t0)
+
+                anim =
+                    Easing.cycle <| first (0.7) silence pulse
+
+                s =
+                    anim duration (now - (y / 280 * 800))
+            in
+                transform <| "scale(" ++ (toString s) ++ ")"
     in
         svg
             [ width "560", height "560" ]
             [ g
-                [ width "280", height "280", onClick (Signal.message address Spin) ]
-                [ path [ t1, fill "#7ed13b", d "m7.7 0h133c20.3 20.4 40.7 40.7 61 61-44 .1-88 0-133 0-20.5-20.3-40.8-40.8-61-61" ] []
-                , path [ t1, fill "#5fb4cb", d "m156 0h124v124c-41-41-83-83-124-124" ] []
-                , path [ t1, fill "#596378", d "m0 7.7c44 44 88 88 133 133-44 44-88 88-133 133v-265" ] []
-                , path [ t1, fill "#f0ad00", d "m80 72c40-.1 81-.1 121 0-20.3 20-40 40-61 61-20-20-40-40-60-61" ] []
-                , path [ t1, fill "#7ed13b", d "m214 74c22 21.8 43.8 43.7 66 66v1.1c-22 21.9-43.8 43.9-65.9 65.8-22-22-44-44-66-66 22-22 44-44 66-66" ] []
-                , path [ t1, fill "#5fb4cb", d "m8.6 280c43.9-43.9 88-88 132-132 44 43.8 88 88 132 132h-264" ] []
-                , path [ t1, fill "#f0ad00", d "m222 214c19-19.7 38.8-38.8 58-58v116c-19.4-19.3-38.6-38.8-58-58" ] []
+                [ width "280", height "280", transform "translate(140,140)" ]
+                [ path [ tr 104 33, fill "#7ed13b", d "M-132.3 -140h133c20.3 20.4 40.7 40.7 61 61-44 .1-88 0-133 0-20.5-20.3-40.8-40.8-61-61" ] []
+                , path [ tr 244 42, fill "#5fb4cb", d "M16 -140h124v124c-41-41-83-83-124-124" ] []
+                , path [ tr 50 140, fill "#596378", d "M-140 -132.3c44 44 88 88 133 133-44 44-88 88-133 133v-265" ] []
+                , path [ tr 140 97, fill "#f0ad00", d "M-60 -68c40-.1 81-.1 121 0-20.3 20-40 40-61 61-20-20-40-40-60-61" ] []
+                , path [ tr 214 140, fill "#7ed13b", d "M74 -66c22 21.8 43.8 43.7 66 66v1.1c-22 21.9-43.8 43.9-65.9 65.8-22-22-44-44-66-66 22-22 44-44 66-66" ] []
+                , path [ tr 140 228, fill "#5fb4cb", d "M-131.4 140c43.9-43.9 88-88 132-132 44 43.8 88 88 132 132h-264" ] []
+                , path [ tr 259 214, fill "#f0ad00", d "M82 74c19-19.7 38.8-38.8 58-58v116c-19.4-19.3-38.6-38.8-58-58" ] []
                 ]
             ]
 
 
-app =
-    StartApp.start
-        { init = init
-        , update = update
-        , view = view
-        , inputs = []
-        }
-
-
 main =
-    app.html
-
-
-port tasks : Signal (Task.Task Effects.Never ())
-port tasks =
-    app.tasks
+    Signal.map view (Time.every 10)
